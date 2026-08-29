@@ -1,0 +1,7 @@
+opencv-python
+numpy
+pygame
+ultralytics
+deepface
+tensorflow
+retina-face
