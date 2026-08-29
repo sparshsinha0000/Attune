@@ -55,9 +55,9 @@ RINGS = 6
 TS_KEY    = os.environ.get("THINGSPEAK_API_KEY", "P9HTEV3BYHZ2MKP9")
 TS_FIELDS = ["happy", "sad", "angry", "surprise", "neutral", "fear"]
 
-ALERT_COOLDOWN = 3.0        # seconds before first alert of new type
-ALERT_REPEAT = 0.8          # seconds between repeated alerts of same type
-DISTRACTION_EMOTIONS = ["angry", "sad", "surprise"]  # emotions that indicate distraction
+ALERT_COOLDOWN = 3.0       
+ALERT_REPEAT = 0.8          
+DISTRACTION_EMOTIONS = ["angry", "sad", "surprise"]  
 ALERT_VOLUME = 0.3
 
 COLORS = {
@@ -78,7 +78,6 @@ def generate_alert_sound(frequency=1000, duration=0.2, sample_rate=22050):
     """Generate a simple beep sound at given frequency."""
     num_samples = int(sample_rate * duration)
     frames = np.sin(2 * np.pi * frequency * np.linspace(0, duration, num_samples))
-    # Create stereo output
     frames = np.repeat(frames.reshape(-1, 1), 2, axis=1)
     frames = (frames * 32767).astype(np.int16)
     sound = pygame.sndarray.make_sound(frames)
@@ -87,16 +86,13 @@ def generate_alert_sound(frequency=1000, duration=0.2, sample_rate=22050):
 
 
 def play_alert(alert_type="normal"):
-    """Play different alert sounds based on type."""
     try:
         if alert_type == "distraction":
-            # Double beep for distraction
             sound = generate_alert_sound(frequency=800, duration=0.15)
             sound.play()
             time.sleep(0.2)
             sound.play()
         elif alert_type == "phone":
-            # Triple beep for phone use
             sound = generate_alert_sound(frequency=1200, duration=0.1)
             sound.play()
             time.sleep(0.15)
@@ -104,7 +100,6 @@ def play_alert(alert_type="normal"):
             time.sleep(0.15)
             sound.play()
         else:
-            # Single beep for normal alert
             sound = generate_alert_sound(frequency=1000, duration=0.2)
             sound.play()
     except Exception as e:
@@ -113,7 +108,7 @@ def play_alert(alert_type="normal"):
 
 
 def normalize_object_label(label: str) -> str:
-    """Keep the label as reported by YOLO, while normalizing common spacing/casing."""
+    
     text = str(label or "").strip().lower()
     if not text:
         return ""
@@ -123,7 +118,6 @@ def normalize_object_label(label: str) -> str:
 
 
 def label_matches_any(obj_counts: dict, *patterns: str) -> bool:
-    """Check if any object label in the current detection matches the provided patterns."""
     if not obj_counts:
         return False
     for label, count in obj_counts.items():
@@ -155,19 +149,18 @@ state = {
     "emotion": "neutral",
     "color":   COLORS["neutral"],
     "faces":   0,
-    "bd":      {},           # emotion -> % breakdown
-    "regions": [],           # face boxes, for the preview panel
-    "objects": [],           # [{x1,y1,x2,y2,label}, ...]
-    "obj_counts": {},        # label -> count
+    "bd":      {},           
+    "regions": [],           
+    "objects": [],          
+    "obj_counts": {},       
     "frame":   None,
-    "frame_version": 0,      # bumped on every new frame so the renderer
-                              # knows when it actually needs to re-convert it
-    "alert_message": "",     # current alert to display
-    "alert_time": 0,         # when the alert was triggered
-    "last_alert_type": "",   # type of last alert ("phone", "distraction", etc)
+    "frame_version": 0,      
+    "alert_message": "",     
+    "alert_time": 0,         
+    "last_alert_type": "",   
 }
-lock  = threading.Lock()     # guards emotion / bd / regions / objects
-flock = threading.Lock()     # guards frame / frame_version
+lock  = threading.Lock()     
+flock = threading.Lock()     
 
 
 def ok_face(region: dict) -> bool:
@@ -184,40 +177,40 @@ def check_alerts(emotion: str, obj_counts: dict, last_alert_time: float, last_al
     has_book = label_matches_any(obj_counts, "book", "notebook", "textbook")
     has_person = label_matches_any(obj_counts, "person", "man", "woman", "girl", "boy")
     
-    # Determine current alert condition
+    
     current_alert_type = ""
     alert_msg = ""
     
-    # Alert: Person using phone while studying (book detected)
+   
     if has_phone and has_book and has_person:
         current_alert_type = "phone"
         alert_msg = "⚠️  PHONE WHILE STUDYING!"
-    # Alert: Phone detected without book (distraction)
+    )
     elif has_phone and not has_book and has_person:
         current_alert_type = "phone"
         alert_msg = "⚠️  PHONE DETECTED!"
-    # Alert: Distracted emotion
+    
     elif emotion in DISTRACTION_EMOTIONS and has_person:
         current_alert_type = "distraction"
         alert_msg = f"⚠️  DISTRACTED ({emotion.upper()})!"
-    # Alert: No book during study time (studying detected by previous state)
+    
     elif has_person and has_book == 0:
         if emotion == "sad" or emotion == "angry":
             current_alert_type = "distraction"
             alert_msg = "⚠️  CHECK FOCUS!"
     
-    # If no alert condition now, clear alert
+    
     if not current_alert_type:
         return "", False, ""
     
-    # If same alert type is continuing, use shorter repeat interval
+    
     if current_alert_type == last_alert_type:
         if current_time - last_alert_time >= ALERT_REPEAT:
             return alert_msg, True, current_alert_type
         else:
             return alert_msg, False, current_alert_type
     
-    # New alert type: apply full cooldown
+   
     if current_time - last_alert_time < ALERT_COOLDOWN:
         return alert_msg, False, current_alert_type
     
@@ -226,7 +219,7 @@ def check_alerts(emotion: str, obj_counts: dict, last_alert_time: float, last_al
 
 
 def post_dashboard(payload: dict):
-    """Fire-and-forget POST to a local dashboard server, if configured."""
+    
     if not DASHBOARD_URL:
         return
     try:
@@ -254,7 +247,7 @@ def post_thingspeak(bd: dict, face_count: int, object_count: int):
         print(f"[thingspeak] failed: {e}")
 
 
-# ── worker thread: camera + both models ────────────────────────────────────────
+
 def worker(yolo_model):
     cap = cv2.VideoCapture(CAMERA_INDEX)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH,  640)
@@ -278,7 +271,7 @@ def worker(yolo_model):
 
         now = time.time()
 
-        # ── object detection (fast cadence) ─────────────────────────────────
+        
         if now - last_obj_analysis >= OBJ_INTERVAL:
             last_obj_analysis = now
             try:
@@ -298,7 +291,7 @@ def worker(yolo_model):
             except Exception as e:
                 print(f"[yolo] {e}")
 
-        # ── emotion detection (slower cadence) ──────────────────────────────
+       
         if now - last_emo_analysis < INTERVAL:
             continue
         last_emo_analysis = now
@@ -330,7 +323,7 @@ def worker(yolo_model):
         else:
             top, breakdown = "neutral", {}
 
-        # ── check for alerts ──────────────────────────────────────────────────
+       
         with lock:
             obj_counts_snapshot = dict(state["obj_counts"])
             last_alert_type_snapshot = state.get("last_alert_type", "")
@@ -363,10 +356,10 @@ def worker(yolo_model):
             post_thingspeak(breakdown, len(emotions), obj_total)
             last_upload = now
 
-    cap.release()  # unreachable — this is a daemon thread, cleaned up on exit
+    cap.release()  
 
 
-# ── render helpers ─────────────────────────────────────────────────────────────
+
 def lerp(c1, c2, t):
     return tuple(int(c1[i] + (c2[i] - c1[i]) * t) for i in range(3))
 
@@ -415,12 +408,12 @@ def frame_to_surface(frame, pw, ph):
     return pygame.transform.scale(surf, (pw, ph))
 
 
-# ── main render loop ───────────────────────────────────────────────────────────
+
 def main():
-    yolo_model = load_yolo_model()   # fail fast, before the window opens
+    yolo_model = load_yolo_model()   
 
     pygame.init()
-    mixer.init(frequency=22050, size=-16, channels=2, buffer=512)  # Initialize audio
+    mixer.init(frequency=22050, size=-16, channels=2, buffer=512)  
     screen = (
         pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
         if FS else pygame.display.set_mode((1280, 720))
@@ -435,7 +428,7 @@ def main():
     f_obj = pygame.font.SysFont("Arial", max(16, H // 55))
     f_lbl = pygame.font.SysFont("Arial", 13)
 
-    # camera preview panel — 640x480 capture, shown at exactly half scale
+    
     PW, PH = 320, 240
     PX, PY = W - PW - 20, H - PH - 20
     SX, SY = PW / 640, PH / 480
@@ -473,7 +466,7 @@ def main():
             alert_msg  = state.get("alert_message", "")
             alert_time = state.get("alert_time", 0)
 
-        # only pull + reconvert the frame when a genuinely new one has arrived
+        
         with flock:
             fv = state["frame_version"]
             frame = state["frame"] if fv != last_seen_version else None
@@ -521,11 +514,11 @@ def main():
             ot = f_obj.render(os_txt, True, (120, 120, 120))
             screen.blit(ot, (22, 20 + tt.get_height() + 6))
 
-        # ── Display alerts ─────────────────────────────────────────────────────
-        if alert_msg and (time.time() - alert_time < 1.5):  # Show alert briefly when triggered
+        
+        if alert_msg and (time.time() - alert_time < 1.5):  
             alert_surf = f_det.render(alert_msg, True, (255, 50, 50))
             alert_rect = alert_surf.get_rect(center=(W // 2, 60))
-            # Draw background for alert
+           
             bg_rect = alert_rect.inflate(20, 10)
             pygame.draw.rect(screen, (80, 20, 20), bg_rect)
             pygame.draw.rect(screen, (255, 50, 50), bg_rect, 2)
